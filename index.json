@@ -1,3 +1,28 @@
 {
-  "plugins": {}
+  "plugins": {
+    "base": {
+      "1.0.0": {
+        "depends": {},
+        "description": "What most games start from: generic entities, common commands and the login menus.",
+        "name": "Base",
+        "pythelix": ">=0.6",
+        "sha256": "99ff01e4fef1218dc17776247402e5c855622b05fd704e4f278dd12b57555b54",
+        "tree_hash": "c737c01e718815346076719502a51e35447e70381c91d74bf0995f4c420d9cdc",
+        "url": "https://github.com/vincent-lg/pythelix-plugins/releases/download/base-v1.0.0/base-1.0.0.tar.gz"
+      }
+    },
+    "farm": {
+      "1.0.0": {
+        "depends": {
+          "base": ">=1.0"
+        },
+        "description": "A tutorial zone teaching how to build, by fixing what's broken in it.",
+        "name": "Maplewood Farm",
+        "pythelix": ">=0.6",
+        "sha256": "b33d12531a5c452b9ebb794589ac1e6061ce1bb87d6b04fcdf2acb772c9696d2",
+        "tree_hash": "22587fa716ec04af551d6d9da932e0e9b9218c75af4d7b09f66e8983096a06fe",
+        "url": "https://github.com/vincent-lg/pythelix-plugins/releases/download/farm-v1.0.0/farm-1.0.0.tar.gz"
+      }
+    }
+  }
 }
