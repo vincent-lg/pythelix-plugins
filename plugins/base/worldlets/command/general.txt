@@ -1,0 +1,79 @@
+!command/look!
+parent = "generic/char_command"
+category = "General"
+name = "look"
+aliases = ["l"]
+syntax = "(<what>)"
+help = """
+Look in a room of something specific.
+
+Syntax:
+    look
+    look <object name>
+
+Without arguments, displays the current room. You can also specify
+an argument to indicate what to look.
+"""
+
+def refine(character, what=""):
+    if what:
+        what = names.match(character.location, what, viewer=character)
+        if not what:
+            character.msg("You don't see that here.")
+            raise RefineError
+        endif
+    endif
+
+def run(character, what=None):
+    text = character.location.look(character)
+    character.msg(text)
+
+!command/quit!
+parent = "generic/player_command"
+category = "General"
+name = "quit"
+help = """
+Quit the game.
+
+This command will quit the game. If your character is not busy, you can
+quit at any time. Your character will leave the world and not be
+visible by anyone, until you log back in of course;.
+"""
+
+def run(character):
+    character.former_location = character.location
+    character.location = None
+    client = clients.owning(character)
+    client.msg("Good bye!")
+    client.disconnect()
+
+!command/inventory!
+parent = "generic/char_command"
+category = "General"
+name = "inventory"
+aliases = ["i"]
+help = """
+Look at your inventory
+
+Syntax:
+    inventory
+    i
+
+See your inventory (the contents of the character).
+"""
+
+def run(character):
+    if character.contents:
+        lines = [
+            "Your inventory:",
+            "",
+        ]
+
+        for name in names.group(character.contents, viewer=character):
+            lines.append(f"  {name}")
+        done
+
+        character.msg("\n".join(lines))
+    else:
+        character.msg("You don't seem to have anything in your inventory right now.")
+    endif

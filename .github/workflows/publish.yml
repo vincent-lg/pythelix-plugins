@@ -1,0 +1,60 @@
+name: Publish plugins
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/**'
+      - '.github/workflows/publish.yml'
+      - 'ci/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Two runs at once would race to update the index.
+concurrency:
+  group: publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: registry
+
+      - uses: actions/checkout@v4
+        with:
+          repository: vincent-lg/pythelix
+          ref: ${{ vars.ENGINE_REF || 'main' }}
+          path: engine
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.18'
+
+      - name: Prepare the engine
+        working-directory: engine
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+          mix compile
+
+      - name: Publish what's new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: registry/ci/publish.sh registry engine
+
+      - name: Commit the index
+        working-directory: registry
+        run: |
+          if ! git diff --quiet index.json; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add index.json
+            git commit -m 'Update the index'
+            git push
+          fi

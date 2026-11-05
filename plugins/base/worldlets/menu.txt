@@ -1,0 +1,233 @@
+!menu/motd!
+parent = "generic/menu"
+text = """
+  ____        _   _          _ _
+ |  _ \ _   _| |_| |__   ___| (_)_  __
+ | |_) | | | | __| '_ \ / _ \ | \ \/ /
+ |  __/| |_| | |_| | | |  __/ | |>  <
+ |_|    \__, |\__|_| |_|\___|_|_/_/\_\
+        |___/
+
+        Welcome to the Pythelix Engine
+-------------------------------------------------------------------------------
+"""
+
+def enter(client):
+    client.location = !menu/username!
+
+!menu/username!
+parent = "generic/menu"
+text = """
+Enter your username or 'new' to create a new one.
+"""
+
+def unknown_input(client, input):
+    account = search.one(!generic/account!, username=input.strip().lower())
+
+    if account:
+        client.account = account
+        client.location = !menu/password!
+    else:
+        client.msg(f"The username {input} doesn't exist. Want to create one? Enter NEW.")
+    endif
+
+!command/username/new!
+parent = "generic/command"
+location = "menu/username"
+name = "new"
+
+def run(client):
+    client.location = !menu/new/username!
+
+!menu/password!
+parent = "generic/menu"
+text = """
+Enter the password for this account.
+"""
+
+def unknown_input(client, input):
+    account = client.account
+
+    if account.password.verify(input):
+        client.location = !menu/account!
+    else:
+        client.location = !menu/invalid/password!
+    endif
+
+!menu/invalid/password!
+parent = "generic/menu"
+text = """
+Invalid password. Wait before retrying...
+"""
+
+def enter(client):
+    wait 3
+    client.location = !menu/password!
+
+def unknown_input(client, _input):
+    client.msg("Wait a bit...")
+
+!menu/new/username!
+parent = "generic/menu"
+text = """
+Welcome, new user! Enter your new username.
+"""
+
+def input(client, input):
+    username = input.strip().lower()
+    account = search.one(!generic/account!, username=username)
+
+    if len(username) < 3:
+        client.msg("This username isn't valid. Choose another one.")
+    elif account:
+        client.msg("This account already exists. Try a new one.")
+    else:
+        account = Entity(parent=!generic/account!)
+        account.username = username
+        client.account = account
+        client.location = !menu/new/password!
+    endif
+
+!menu/new/password!
+parent = "generic/menu"
+text = """
+Enter your new account's password.
+"""
+
+def input(client, input):
+    client.account.password = password.hash(input)
+    client.location = !menu/account!
+
+!menu/account!
+parent = "generic/menu"
+
+def enter(client):
+    account = client.account
+
+    if len(account.players) == 0:
+        client.location = !menu/new/character!
+    else:
+        client.location = !menu/characters!
+    endif
+
+!menu/characters!
+parent = "generic/menu"
+
+def get_text(client):
+    account = client.account
+
+    lines = [
+        f"Welcome to your account, {account.username}!",
+        "",
+    ]
+
+    i = 1
+    for player in account.players:
+        lines.append(f"  {i} to play {player.name}")
+        i += 1
+    done
+
+    lines.append("  C to create a new character in this account.")
+
+    if account.players:
+        lines.append("  D to delete a character from this account.")
+    endif
+
+    return "\n".join(lines)
+
+def unknown_input(client, input):
+    account = client.account
+
+    i = 1
+    for player in account.players:
+        if input == str(i):
+            client.player = player
+            client.location = !menu/near_game!
+            return None
+        endif
+        i += 1
+    done
+
+    client.msg("Unknown input.")
+
+!command/characters/create!
+parent = "generic/command"
+name = "c"
+location = "menu/characters"
+
+def run(client):
+    client.location = !menu/new/character!
+
+!menu/new/character!
+parent = "generic/menu"
+text = "To create a character in this account, enter the character's name"
+prompt = "Enter the character's name:"
+
+def start_location(client):
+    """Where a new character appears. Override this in your game."""
+    return !base/room/start!
+
+def unknown_input(client, input):
+    account = client.account
+    has_players = len(!generic/player!.children) > 0
+    player = Entity(parent=!generic/player!)
+    player.name = input
+    player.account = account
+    account.players.append(player)
+
+    if not has_players:
+        log(f"{player.name!r} (#{player.id}) becomes an administrator")
+        player.permissions.add("admin")
+    endif
+
+    player.former_location = !menu/new/character!.start_location(client)
+    client.player = player
+    client.location = !menu/near_game!
+
+!menu/near_game!
+parent = "generic/menu"
+
+def enter(client):
+    player = client.player
+    player.location = player.former_location
+
+    client.owner = player
+    client.controls.add(player)
+
+    client.location = !menu/game!
+
+!menu/game!
+parent = "generic/menu"
+
+def enter(self, character):
+    # Calls enter.
+    character.location.enter(character)
+
+def input(character, input):
+    # Check exits.
+    exit = character.location.find_exit(input)
+    if exit is not None:
+        character.try_exit(exit)
+        return True
+    endif
+
+    # Check channels.
+    if !generic/channel!.match_name(character, input):
+        return True
+    endif
+
+    return False
+
+def get_text(client):
+    character = client.owner
+    text = character.former_location.look(character)
+    return f"""
+        Welcome back!
+        {text}
+    """
+
+def get_prompt(_character):
+    return "HP: 200"
+
+def invalid_input(character, _input):
+    character.msg("Command not found.")

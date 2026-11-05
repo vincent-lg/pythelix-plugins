@@ -1,0 +1,70 @@
+!command/pythello!
+parent = "generic/admin_command"
+category = "Administrator"
+name = "pythello"
+syntax = "<text>"
+help = """
+Execute Pythello script and see its result.
+
+Syntax:
+    py <code>
+
+Executes some code in Pyhello and see the result.
+
+Examples:
+    py 30 * 5
+    py self.contents
+    py location.title = "Something else"
+    py variable = 3
+    py variable * 4
+
+You can also enter several lines at once (useful for conditions and loops):
+
+    py if variable > 0:
+    py self.msg("That would be more than 0.")
+    py endif
+"""
+
+def run(character, text):
+    console = getattr(character, "pycode", None)
+
+    if console is None:
+        character.pycode = code.Console({"self": character, "location": character.location})
+    endif
+
+    result = character.pycode.push(text)
+    if result["status"] == "complete":
+        value = result["value"]
+        if value is not None:
+            character.msg(value)
+        endif
+    elif result["status"] == "need_more":
+        character.msg("...")
+    elif result["status"] == "error":
+        character.msg(result["error"])
+    endif
+
+    #character.game_modes.add(!menu/pythello!, character)
+    #character.msg("Pythello console")
+
+!menu/pythello!
+parent = "generic/menu"
+text = """
+Welcome to the Pythello scripting console
+You can enter Pythello scripting instructions and see the result in your console.
+Enter 'quit' to quit this console.
+Use '>' followed by a command to enter a command in the normal game mode (like '>look').
+"""
+prompt = ">>>"
+
+def unknown_input(character, input):
+    character.msg(f"Received: {input}.")
+
+!command/pythello/quit!
+parent = "generic/command"
+location = "menu/pythello"
+name = "quit"
+
+def run(character):
+    character.game_modes.close()
+    character.msg("Good bye.")
